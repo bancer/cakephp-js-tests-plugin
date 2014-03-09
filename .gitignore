@@ -5,3 +5,8 @@ Test/data/js_instrumented/*.html
 Test/data/js_instrumented/tests/*.js
 Test/data/js_instrumented/tests/*.html
 Test/data/js_instrumented/qunit/*
+
+#ignore eclipse project files
+/.buildpath
+/.project
+/.settings
