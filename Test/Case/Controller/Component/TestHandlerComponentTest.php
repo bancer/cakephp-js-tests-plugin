@@ -202,8 +202,8 @@ class TestHandlerComponentTest extends CakeTestCase
 			$this->assertTrue(true);
 		}
 
-		#$testJSCoveragePath = '/usr/bin/jscoverage';
-		$testJSCoveragePath = 'c:\\usr\\bin\\jscoverage-0.5.1\\jscoverage.exe';
+		$testJSCoveragePath = '/usr/bin/jscoverage';
+		//$testJSCoveragePath = 'c:\\usr\\bin\\jscoverage-0.5.1\\jscoverage.exe';
 
 		$this->skipIf(!file_exists($testJSCoveragePath));
 		Configure::write('JsTests.JSCoverage', array('executable' => $testJSCoveragePath));

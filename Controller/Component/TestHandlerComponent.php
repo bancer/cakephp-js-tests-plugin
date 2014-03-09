@@ -155,60 +155,15 @@ class TestHandlerComponent extends Component
 	 *
 	 * @param array $profileData
 	 */
-	function instrument($profileData)
-	{
-		$jsbin = Configure::read('JsTests.JSCoverage.executable');
-
-		if (!file_exists($jsbin))
-		{
-			trigger_error('JSCoverage executable not found!');
-			return;
-		}
-
-		$noInstrument = array();
-		$exclude = array();
-
-		foreach ($profileData['instrumentation']['noInstrument'] as $item)
-		{
-			$noInstrument[] = sprintf('--no-instrument="%s"', $item);
-		}
-
-		foreach ($profileData['instrumentation']['exclude'] as $item)
-		{
-			$exclude[] = sprintf('--exclude="%s"', $item);
-		}
-
-		$sourceDir = $profileData['dir']['normal_root'];
-		$targetDir = $profileData['dir']['instrumented_root'];
-
-		$command = sprintf
-			(
-				'%s -v %s %s "%s" "%s"',
-				$jsbin,
-				join(' ', $noInstrument),
-				join(' ', $exclude),
-				str_replace('\\', '/', $sourceDir),
-				str_replace('\\', '/', $targetDir)
-			);
-
-		$output = array();
-		$exitCode = null;
-
-		if (DIRECTORY_SEPARATOR != '\\')
-		{
-			$command = $command.' 2>&1';
-		}
-		#else
-		#{
-		#	$command = str_replace('\\', '/', $command);
-		#}
-
-		#pr($command);die;
-		if (!defined('CAKEPHP_UNIT_TEST_EXECUTION'))
-		{
-			exec($command, $output, $exitCode);
-		}
-
-		return array('output' => $output, 'exitCode' => $exitCode);
+	function instrument($profileData) {
+		$adapter = $profileData['instrumentation']['library'].'Adapter';
+		App::uses($adapter, 'JsTests.Lib');
+		$coverage = new $adapter(Configure::read('JsTests.JSCoverage.executable'));
+		return $coverage->execute(
+			$profileData['instrumentation']['noInstrument'],
+			$profileData['instrumentation']['exclude'],
+			$profileData['dir']['normal_root'],
+			$profileData['dir']['instrumented_root']
+		);		
 	}
 }
