@@ -86,14 +86,26 @@
 					<tr>
 						<td class="test-name"><?php echo $name; ?></td>
 						<td>
-							<a href="<?php echo $data['normalTestUrl']; ?>">Run</a>
-							<a href="<?php echo $data['normalTestUrl']; ?>" target="_blank">[^]</a>
+							<?php
+							echo $this->JsTest->testLink('Run', $data['mainTestFile']);
+							echo ' '.$this->JsTest->testLink(
+								'[^]',
+								$data['mainTestFile'],
+								array('target' => '_blank')
+							);
+							?>
 						</td>
 						<td>
 						<?php if ($data['instrumentedExists']): ?>
-							<?php $totalInstrumentedTests++; ?>
-							<a href="<?php echo $data['instrumentedTestUrl']; ?>">Run</a>
-							<a href="<?php echo $data['instrumentedTestUrl']; ?>" target="_blank">[^]</a>
+							<?php
+							$totalInstrumentedTests++;
+							echo $this->JsTest->coverageLink('Run', $data['mainTestFile']);
+							echo ' '.$this->JsTest->coverageLink(
+								'[^]',
+								$data['mainTestFile'],
+								array('target' => '_blank')
+							);
+							?>
 						<?php else: ?>
 							&infin;
 						<?php endif; ?>

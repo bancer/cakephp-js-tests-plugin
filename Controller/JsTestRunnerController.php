@@ -16,11 +16,12 @@
  */
 class JsTestRunnerController extends JsTestsAppController
 {
-	var $name = 'JsTestRunner';
-	var $uses = array();
-	var $components = array('Session', 'RequestHandler', 'JsTests.TestHandler');
+	public $name = 'JsTestRunner';
+	public $uses = array();
+	public $components = array('Session', 'RequestHandler', 'JsTests.TestHandler');
+	public $helpers = array('JsTests.JsTest');
 
-	function run()
+	public function run()
 	{
 		$passed = $this->TestHandler->checkProfile($this->activeProfileData);
 
@@ -46,7 +47,7 @@ class JsTestRunnerController extends JsTestsAppController
 		$this->set(compact('tests', 'availableProfiles'));
 	}
 
-	function instrument()
+	public function instrument()
 	{
 		if (!$this->RequestHandler->isPost())
 		{
@@ -75,5 +76,10 @@ class JsTestRunnerController extends JsTestsAppController
 			$this->Session->setFlash('Instrumentation successfull');
 			$this->redirect($this->referer());
 		}
+	}
+	
+	public function beforeRender() {
+		parent::beforeRender();
+		$this->helpers['JsTests.JsTest']['url'] = $this->activeProfileData['url'];
 	}
 }
