@@ -15,8 +15,7 @@ class JsTestHelper extends AppHelper {
 	}
 	
 	public function coverageLink($title, $url = null, $options = array()) {
-		$rootUrl = Router::url('/');
-		$instrumentedTestFileURL = $rootUrl.$this->settings['url']['instrumented_tests'].$url;
+		$instrumentedTestFileURL = $this->Html->url('/'.$this->settings['url']['instrumented_tests'].$url);
 		$instrumentedTestURL = sprintf(
 			self::COVERAGE_LINK_FORMAT,
 			$this->settings['url']['instrumented_root'],
