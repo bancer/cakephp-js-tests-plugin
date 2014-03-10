@@ -16,8 +16,8 @@ App::uses('Router', 'Routing');
 
 class TestHandlerComponent extends Component
 {
-	var $name = 'TestHandler';
-	var $_tests = array();
+	public $name = 'TestHandler';
+	protected $_tests = array();
 
 	/**
 	 * Detects tests for a given profile, reads all the data for the test
@@ -27,38 +27,26 @@ class TestHandlerComponent extends Component
 	 * @param array $profileData
 	 * @return array A set of detected tests for a profile.
 	 */
-	function loadTests($profileName, $profileData)
-	{
+	function loadTests($profileName, $profileData) {
 		$this->_tests[$profileName] = array();
 
 		// detect tests
-		$testsGlob = $profileData['dir']['normal_tests'].$profileData['params']['tests'];
-		$detectedTests = glob($testsGlob);
+		$testLaunchers = $this->_findTestLaunchers($profileData['dir']['normal_tests'], $profileData['params']['tests']);
 
-		foreach ($detectedTests as $testFullPath)
-		{
+		foreach ($testLaunchers as $testFullPath) {
 			// get the name and related test files
 			$testMainFileName = basename($testFullPath);
+			$testName = $this->_getTestName($profileData['params']['name'], $testMainFileName);
 
-			$matches = array();
-			$testFiles = array();
-
-			$testName = preg_match('#'.$profileData['params']['name'].'#', $testMainFileName, $matches);
-			$testName = isset($matches['name']) ? $matches['name'] : $matches[0];
-
-			foreach ($profileData['params']['files'] as $pattern)
-			{
-				$relatedPattern = dirname($testFullPath).DS.str_replace('%name%', $testName, $pattern);
-				$testFiles = array_merge($testFiles, glob($relatedPattern));
-			}
+			$jsTestFiles = $this->_findTestFiles($profileData['params']['files'], $testFullPath, $testName);
 
 			$this->_tests[$profileName][$testName]['mainTestFile'] = $testMainFileName;
 			$this->_tests[$profileName][$testName]['normalTestPath'] = $testFullPath;
 			$this->_tests[$profileName][$testName]['instrumentedTestPath'] = $profileData['dir']['instrumented_tests'].$testMainFileName;
 
-			$this->_tests[$profileName][$testName]['normalRelatedTestFiles'] = $testFiles;
+			$this->_tests[$profileName][$testName]['normalRelatedTestFiles'] = $jsTestFiles;
 
-			$instrumentedRelatedTestFiles = str_replace($profileData['dir']['normal_tests'], $profileData['dir']['instrumented_tests'], $testFiles);
+			$instrumentedRelatedTestFiles = str_replace($profileData['dir']['normal_tests'], $profileData['dir']['instrumented_tests'], $jsTestFiles);
 			$this->_tests[$profileName][$testName]['instrumentedRelatedTestFiles'] = $instrumentedRelatedTestFiles;
 
 			// check for instrumented version
@@ -67,35 +55,63 @@ class TestHandlerComponent extends Component
 			$this->_tests[$profileName][$testName]['instrumentedIsUpdated'] = false;
 
 			// check if the instrumented version is up to date
-			if ($instrumentedExists)
-			{
-				$lastNormalModification = filemtime($testFullPath);
-
-				foreach ($testFiles as $testFile)
-				{
-					if (file_exists($testFile))
-					{
-						$tmp_mtime = filemtime($testFile);
-						$lastNormalModification = $tmp_mtime > $lastNormalModification ? $tmp_mtime : $lastNormalModification;
-					}
-				}
-
-				$lastInstrumentedModification = filemtime($this->_tests[$profileName][$testName]['instrumentedTestPath']);
-
-				foreach ($instrumentedRelatedTestFiles as $testFile)
-				{
-					if (file_exists($testFile))
-					{
-						$tmp_mtime = filemtime($testFile);
-						$lastInstrumentedModification = $tmp_mtime > $lastInstrumentedModification ? $tmp_mtime : $lastInstrumentedModification;
-					}
-				}
-
-				$this->_tests[$profileName][$testName]['instrumentedIsUpdated'] = $lastInstrumentedModification >= $lastNormalModification;
+			if ($instrumentedExists) {
+				$coverageFullPath = $this->_tests[$profileName][$testName]['instrumentedTestPath'];
+				$this->_tests[$profileName][$testName]['instrumentedIsUpdated'] = 
+					$this->_coverageFilesAreUpToDate($jsTestFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath);
 			}
 		}
-
 		return $this->_tests[$profileName];
+	}
+	
+	protected function _getTestName($testLauncherNameRegex, $testMainFileName) {
+		$matches = array();	
+		$testName = preg_match('#'.$testLauncherNameRegex.'#', $testMainFileName, $matches);
+		$testName = isset($matches['name']) ? $matches['name'] : $matches[0];
+		return $testName;
+	}
+	
+	protected function _findTestLaunchers($testsLaunchersDir, $testLauncherFilePattern) {
+		$testsGlob = $testsLaunchersDir.$testLauncherFilePattern;
+		$testLaunchers = glob($testsGlob);
+		return $testLaunchers;
+	}
+	
+	protected function _findTestFiles($jsTestFiles, $testFullPath, $testName) {
+		$testFiles = array();
+		foreach ($jsTestFiles as $pattern) {
+			$relatedPattern = dirname($testFullPath).DS.str_replace('%name%', $testName, $pattern);
+			$testFiles = array_merge($testFiles, glob($relatedPattern));
+		}
+		return $testFiles;
+	}
+	
+	protected function _coverageFilesAreUpToDate($testFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath) {
+		$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $testFullPath);
+		$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $coverageFullPath);
+		return $lastInstrumentedModification >= $lastNormalModification;
+	}
+	
+	protected function _testFilesLastModificationTime($testFiles, $testFullPath) {
+		$lastNormalModification = filemtime($testFullPath);
+		foreach ($testFiles as $testFile) {
+			if (file_exists($testFile)) {
+				$tmp_mtime = filemtime($testFile);
+				$lastNormalModification = $tmp_mtime > $lastNormalModification ? $tmp_mtime : $lastNormalModification;
+			}
+		}
+		return $lastNormalModification;
+	}
+	
+	protected function _coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $testFullPath) {
+		$lastInstrumentedModification = filemtime($testFullPath);	
+		foreach ($instrumentedRelatedTestFiles as $testFile) {
+			if (file_exists($testFile)) {
+				$tmp_mtime = filemtime($testFile);
+				$lastInstrumentedModification = $tmp_mtime > $lastInstrumentedModification ? $tmp_mtime : $lastInstrumentedModification;
+			}
+		}
+		return $lastInstrumentedModification;
 	}
 
 	/**
