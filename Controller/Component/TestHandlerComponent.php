@@ -28,7 +28,7 @@ class TestHandlerComponent extends Component
 	 * @return array A set of detected tests for a profile.
 	 */
 	function loadTests($profileName, $profileData) {
-		$this->_tests[$profileName] = array();
+		$this->_tests = array($profileName => array());
 
 		// detect tests
 		$testLaunchers = $this->_findTestLaunchers($profileData['dir']['normal_tests'], $profileData['params']['tests']);
@@ -39,27 +39,25 @@ class TestHandlerComponent extends Component
 			$testName = $this->_getTestName($profileData['params']['name'], $testMainFileName);
 
 			$jsTestFiles = $this->_findTestFiles($profileData['params']['files'], $testFullPath, $testName);
-
-			$this->_tests[$profileName][$testName]['mainTestFile'] = $testMainFileName;
-			$this->_tests[$profileName][$testName]['normalTestPath'] = $testFullPath;
-			$this->_tests[$profileName][$testName]['instrumentedTestPath'] = $profileData['dir']['instrumented_tests'].$testMainFileName;
-
-			$this->_tests[$profileName][$testName]['normalRelatedTestFiles'] = $jsTestFiles;
-
 			$instrumentedRelatedTestFiles = str_replace($profileData['dir']['normal_tests'], $profileData['dir']['instrumented_tests'], $jsTestFiles);
-			$this->_tests[$profileName][$testName]['instrumentedRelatedTestFiles'] = $instrumentedRelatedTestFiles;
-
+			
 			// check for instrumented version
 			$instrumentedExists = file_exists($profileData['dir']['instrumented_tests'].$testMainFileName);
-			$this->_tests[$profileName][$testName]['instrumentedExists'] = $instrumentedExists;
-			$this->_tests[$profileName][$testName]['instrumentedIsUpdated'] = false;
 
-			// check if the instrumented version is up to date
-			if ($instrumentedExists) {
-				$coverageFullPath = $this->_tests[$profileName][$testName]['instrumentedTestPath'];
-				$this->_tests[$profileName][$testName]['instrumentedIsUpdated'] = 
-					$this->_coverageFilesAreUpToDate($jsTestFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath);
-			}
+			$instrumentedTestPath = $profileData['dir']['instrumented_tests'].$testMainFileName;
+
+			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($instrumentedExists,
+					$jsTestFiles, $instrumentedRelatedTestFiles, $testFullPath, $instrumentedTestPath);
+			
+			$this->_tests[$profileName][$testName] = array(
+				'mainTestFile' 					=> $testMainFileName,
+				'normalTestPath' 				=> $testFullPath,
+				'instrumentedTestPath' 			=> $instrumentedTestPath,
+				'normalRelatedTestFiles' 		=> $jsTestFiles,
+				'instrumentedRelatedTestFiles' 	=> $instrumentedRelatedTestFiles,
+				'instrumentedExists' 			=> $instrumentedExists,
+				'instrumentedIsUpdated' 		=> $instrumentedIsUpdated
+			);
 		}
 		return $this->_tests[$profileName];
 	}
@@ -86,10 +84,15 @@ class TestHandlerComponent extends Component
 		return $testFiles;
 	}
 	
-	protected function _coverageFilesAreUpToDate($testFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath) {
-		$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $testFullPath);
-		$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $coverageFullPath);
-		return $lastInstrumentedModification >= $lastNormalModification;
+	protected function _coverageFilesAreUpToDate($instrumentedExists, $testFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath) {
+		$instrumentedIsUpdated = false;
+		// check if the instrumented version is up to date
+		if ($instrumentedExists) {
+			$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $testFullPath);
+			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $coverageFullPath);
+			$instrumentedIsUpdated = $lastInstrumentedModification >= $lastNormalModification;
+		}
+		return $instrumentedIsUpdated;
 	}
 	
 	protected function _testFilesLastModificationTime($testFiles, $testFullPath) {
