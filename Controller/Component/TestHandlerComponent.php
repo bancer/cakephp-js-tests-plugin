@@ -14,10 +14,13 @@
 App::uses('Component', 'Controller');
 App::uses('Router', 'Routing');
 
-class TestHandlerComponent extends Component
-{
+class TestHandlerComponent extends Component {
+	
 	public $name = 'TestHandler';
+	
 	protected $_tests = array();
+	
+	public $_profiles = array();
 
 	/**
 	 * Detects tests for a given profile, reads all the data for the test
@@ -27,76 +30,87 @@ class TestHandlerComponent extends Component
 	 * @param array $profileData
 	 * @return array A set of detected tests for a profile.
 	 */
-	function loadTests($profileName, $profileData) {
+	function loadTests($profileName) {
 		$this->_tests = array($profileName => array());
 
 		// detect tests
-		$testLaunchers = $this->_findTestLaunchers($profileData['dir']['normal_tests'], $profileData['params']['tests']);
+		$views = $this->_findTestViews($profileName);
 
-		foreach ($testLaunchers as $testFullPath) {
+		foreach ($views as $view) {
 			// get the name and related test files
-			$testMainFileName = basename($testFullPath);
-			$testName = $this->_getTestName($profileData['params']['name'], $testMainFileName);
-
-			$jsTestFiles = $this->_findTestFiles($profileData['params']['files'], $testFullPath, $testName);
-			$instrumentedRelatedTestFiles = str_replace($profileData['dir']['normal_tests'], $profileData['dir']['instrumented_tests'], $jsTestFiles);
-			
-			// check for instrumented version
-			$instrumentedExists = file_exists($profileData['dir']['instrumented_tests'].$testMainFileName);
-
-			$instrumentedTestPath = $profileData['dir']['instrumented_tests'].$testMainFileName;
-
+			$action = basename($view);
+			$testName = $this->_getTestName($profileName, $action);
+			$jsTests = $this->_findJsTestFiles($profileName, $view, $testName);
+			$jsCoverageTests = $this->_findJsCoverageTests($profileName, $jsTests);
+			$instrumentedExists = $this->_coverageExists($profileName, $action);
+			$coverageView = $this->_findCoverageView($profileName, $action);
 			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($instrumentedExists,
-					$jsTestFiles, $instrumentedRelatedTestFiles, $testFullPath, $instrumentedTestPath);
+					$jsTests, $jsCoverageTests, $view, $coverageView);
 			
 			$this->_tests[$profileName][$testName] = array(
-				'mainTestFile' 					=> $testMainFileName,
-				'normalTestPath' 				=> $testFullPath,
-				'instrumentedTestPath' 			=> $instrumentedTestPath,
-				'normalRelatedTestFiles' 		=> $jsTestFiles,
-				'instrumentedRelatedTestFiles' 	=> $instrumentedRelatedTestFiles,
-				'instrumentedExists' 			=> $instrumentedExists,
-				'instrumentedIsUpdated' 		=> $instrumentedIsUpdated
+				'mainTestFile' 					=> $action,					// test file action (used to build url)
+				'normalTestPath' 				=> $view,					// used nowhere
+				'instrumentedTestPath' 			=> $coverageView, 			// used nowhere
+				'normalRelatedTestFiles' 		=> $jsTests,				// used nowhere
+				'instrumentedRelatedTestFiles' 	=> $jsCoverageTests,		// used nowhere
+				'instrumentedExists' 			=> $instrumentedExists,		// this flag is used to display coverage links
+				'instrumentedIsUpdated' 		=> $instrumentedIsUpdated	// this flag is used to show whether the coverage needs an update
 			);
 		}
 		return $this->_tests[$profileName];
 	}
 	
-	protected function _getTestName($testLauncherNameRegex, $testMainFileName) {
+	protected function _getTestName($profileName, $action) {
 		$matches = array();	
-		$testName = preg_match('#'.$testLauncherNameRegex.'#', $testMainFileName, $matches);
+		$testName = preg_match('#'.$this->_profiles[$profileName]['params']['name'].'#', $action, $matches);
 		$testName = isset($matches['name']) ? $matches['name'] : $matches[0];
 		return $testName;
 	}
 	
-	protected function _findTestLaunchers($testsLaunchersDir, $testLauncherFilePattern) {
-		$testsGlob = $testsLaunchersDir.$testLauncherFilePattern;
-		$testLaunchers = glob($testsGlob);
-		return $testLaunchers;
+	protected function _findTestViews($profileName) {
+		$testsGlob = $this->_profiles[$profileName]['dir']['normal_tests'].$this->_profiles[$profileName]['params']['tests'];
+		$views = glob($testsGlob);
+		return $views;
 	}
 	
-	protected function _findTestFiles($jsTestFiles, $testFullPath, $testName) {
+	protected function _findJsTestFiles($profileName, $view, $testName) {
 		$testFiles = array();
-		foreach ($jsTestFiles as $pattern) {
-			$relatedPattern = dirname($testFullPath).DS.str_replace('%name%', $testName, $pattern);
+		foreach ($this->_profiles[$profileName]['params']['files'] as $pattern) {
+			$relatedPattern = dirname($view).DS.str_replace('%name%', $testName, $pattern);
 			$testFiles = array_merge($testFiles, glob($relatedPattern));
 		}
 		return $testFiles;
 	}
 	
-	protected function _coverageFilesAreUpToDate($instrumentedExists, $testFiles, $instrumentedRelatedTestFiles, $testFullPath, $coverageFullPath) {
+	protected function _findJsCoverageTests($profileName, $jsTests) {
+		return str_replace(
+			$this->_profiles[$profileName]['dir']['normal_tests'],
+			$this->_profiles[$profileName]['dir']['instrumented_tests'],
+			$jsTests
+		);
+	}
+	
+	protected function _coverageExists($profileName, $action) {
+		return file_exists($this->_profiles[$profileName]['dir']['instrumented_tests'].$action);
+	}
+	
+	protected function _findCoverageView($profileName, $action) {
+		return $this->_profiles[$profileName]['dir']['instrumented_tests'].$action;
+	}
+	
+	protected function _coverageFilesAreUpToDate($instrumentedExists, $testFiles, $jsCoverageTests, $view, $coverageView) {
 		$instrumentedIsUpdated = false;
 		// check if the instrumented version is up to date
 		if ($instrumentedExists) {
-			$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $testFullPath);
-			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $coverageFullPath);
+			$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $view);
+			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($jsCoverageTests, $coverageView);
 			$instrumentedIsUpdated = $lastInstrumentedModification >= $lastNormalModification;
 		}
 		return $instrumentedIsUpdated;
 	}
 	
-	protected function _testFilesLastModificationTime($testFiles, $testFullPath) {
-		$lastNormalModification = filemtime($testFullPath);
+	protected function _testFilesLastModificationTime($testFiles, $view) {
+		$lastNormalModification = filemtime($view);
 		foreach ($testFiles as $testFile) {
 			if (file_exists($testFile)) {
 				$tmp_mtime = filemtime($testFile);
@@ -106,9 +120,9 @@ class TestHandlerComponent extends Component
 		return $lastNormalModification;
 	}
 	
-	protected function _coverageFilesLastModificationTime($instrumentedRelatedTestFiles, $testFullPath) {
-		$lastInstrumentedModification = filemtime($testFullPath);	
-		foreach ($instrumentedRelatedTestFiles as $testFile) {
+	protected function _coverageFilesLastModificationTime($jsCoverageTests, $view) {
+		$lastInstrumentedModification = filemtime($view);
+		foreach ($jsCoverageTests as $testFile) {
 			if (file_exists($testFile)) {
 				$tmp_mtime = filemtime($testFile);
 				$lastInstrumentedModification = $tmp_mtime > $lastInstrumentedModification ? $tmp_mtime : $lastInstrumentedModification;

@@ -31,7 +31,7 @@ class JsTestRunnerController extends JsTestsAppController
 		}
 		else
 		{
-			$tests = $this->TestHandler->loadTests($this->activeProfileName, $this->activeProfileData);
+			$tests = $this->TestHandler->loadTests($this->activeProfileName);
 		}
 
 		$allProfiles = Configure::read('JsTests.Profiles');
@@ -81,5 +81,10 @@ class JsTestRunnerController extends JsTestsAppController
 	public function beforeRender() {
 		parent::beforeRender();
 		$this->helpers['JsTests.JsTest']['url'] = $this->activeProfileData['url'];
+	}
+	
+	public function beforeFilter() {
+		parent::beforeFilter();
+		$this->TestHandler->_profiles = Configure::read('JsTests.Profiles');
 	}
 }

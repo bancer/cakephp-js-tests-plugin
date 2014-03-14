@@ -1,9 +1,12 @@
 <?php
+App::uses('AppHelper', 'View/Helper');
 App::uses('HtmlHelper', 'View/Helper');
 
 class JsTestHelper extends AppHelper {
 	
-	const COVERAGE_LINK_FORMAT = '/%sjscoverage.html?u=%s';
+	const COVERAGE_HTML = 'jscoverage.html';
+	
+	const COVERAGE_LINK_FORMAT = '/%s%s?u=%s';
 	
 	public $helpers = array('Html');
 	
@@ -19,6 +22,7 @@ class JsTestHelper extends AppHelper {
 		$instrumentedTestURL = sprintf(
 			self::COVERAGE_LINK_FORMAT,
 			$this->settings['url']['instrumented_root'],
+			self::COVERAGE_HTML,
 			$instrumentedTestFileURL
 		);
 		return $this->Html->link($title, $instrumentedTestURL, $options);
