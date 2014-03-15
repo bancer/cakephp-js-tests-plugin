@@ -39,8 +39,8 @@ class TestHandlerComponent extends Component {
 			$testName 			= $this->_getTestName($profileName, $action);
 			$jsTests 			= $this->_findJsTestFiles($profileName, $testName);
 			$jsCoverageTests 	= $this->_findJsCoverageTests($profileName, $jsTests);
-			$instrumentedExists = $this->_coverageExists($profileName, $testName);
 			$coverageView 		= $this->_findCoverageView($profileName, $action);
+			$instrumentedExists = $this->_coverageExists($profileName, $testName, $coverageView);
 			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($profileName, $instrumentedExists,
 					$jsTests, $jsCoverageTests, $view, $coverageView);
 			
@@ -160,9 +160,10 @@ class TestHandlerComponent extends Component {
 	 * Verifies whether the test javascript coverage files exist for the specified test.
 	 * @param string $profileName
 	 * @param string $testName
+	 * @param string $coverageView
 	 * @return boolean true if test coverage files exist, else false.
 	 */
-	protected function _coverageExists($profileName, $testName) {
+	protected function _coverageExists($profileName, $testName, $coverageView) {
 		foreach ($this->_profiles[$profileName]['params']['files'] as $pattern) {
 			$jsTest = $this->_profiles[$profileName]['dir']['normal_tests'].str_replace('%name%', $testName, $pattern);
 			$jsTestCoverage = $this->_profiles[$profileName]['dir']['instrumented_tests'].str_replace('%name%', $testName, $pattern);
@@ -170,7 +171,13 @@ class TestHandlerComponent extends Component {
 				return false;
 			}
 		}
-		return file_exists($this->_profiles[$profileName]['dir']['instrumented_root'].JsTestHelper::COVERAGE_HTML);
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		if(is_string($launcher)) {
+			return file_exists($coverageView);
+		}
+		if(is_array($launcher)) {
+			return file_exists($this->_profiles[$profileName]['dir']['instrumented_root'].JsTestHelper::COVERAGE_HTML);
+		}
 	}
 	
 	/**

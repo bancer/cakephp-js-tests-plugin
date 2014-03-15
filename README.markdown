@@ -68,6 +68,7 @@ and change the path to JSCoverage executable on your system.
 
 ### JSCover ###
 **Note**: only for those who use JSCover library.
+**Important**: make sure you have Java runtime environment installed on your server.
 
 By default and for illustration purposes tests are placed into the plugin folder.
 If you are happy with that skip this section.
