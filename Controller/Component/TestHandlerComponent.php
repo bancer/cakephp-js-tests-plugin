@@ -13,6 +13,7 @@
 
 App::uses('Component', 'Controller');
 App::uses('Router', 'Routing');
+App::uses('JsTestHelper', 'Plugin/JsTests/View/Helper');
 
 class TestHandlerComponent extends Component {
 	
@@ -169,7 +170,7 @@ class TestHandlerComponent extends Component {
 				return false;
 			}
 		}
-		return true;
+		return file_exists($this->_profiles[$profileName]['dir']['instrumented_root'].JsTestHelper::COVERAGE_HTML);
 	}
 	
 	/**
@@ -207,7 +208,7 @@ class TestHandlerComponent extends Component {
 		if ($instrumentedExists) {
 			$lastNormalModification = $this->_testFilesLastModificationTime($jsTests, $view);
 			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($jsCoverageTests, $coverageView);
-			$instrumentedIsUpdated = $lastInstrumentedModification > $lastNormalModification;
+			$instrumentedIsUpdated = $lastInstrumentedModification > $lastNormalModification - 1;
 		}
 		return $instrumentedIsUpdated;
 	}
