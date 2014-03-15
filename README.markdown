@@ -4,8 +4,8 @@
 
 JsTests is a [CakePHP][] plugin which tries to make it easy for you to run unit tests on your
 JavaScript code. As the modern applications become more and more client side oriented, the need
-for JS unit tests is increasing. This plugin uses [QUnit][] and [JSCoverage][] to test JavaScript
-files and provide code coverage.
+for JS unit tests is increasing. This plugin uses [QUnit][] with [JSCoverage][] or [JSCover][] 
+to test JavaScript files and provide code coverage.
 
 ## Usage ##
 
@@ -20,23 +20,15 @@ First, obtain the plugin. If you're using Git, run this while in your app folder
 Or visit <http://github.com/lecterror/cakephp-js-tests-plugin/> and download the
 plugin manually to your `app/Plugin/JsTests/` folder.
 
-Next, make sure you have [JSCoverage][] somewhere on your system. On Ubuntu this is as simple as:
-
-	sudo apt-get install jscoverage
-
-If you're on Windows, download the Windows binaries and place them somewhere warm and comfy.
-
 The best way to start using the plugin is to copy the examples from the plugin "examples"
 folder to your `app/webroot/js/`. Additionally, create a `app/webroot/js_instrumented/` folder
 and make it world-writable (also make sure it's completely empty!).
 
-Next, copy the `JsTests/Config/core.php.default` to `JsTests/Config/core.php` and open
-the file in your favourite editor, which, if not [Vim][], is inferior to Vim. Now, find the line
-which says:
+Next, copy the `JsTests/Config/core.php.default` to `JsTests/Config/core.php`. 
 
-	'executable'	=> '/usr/bin/jscoverage'
-
-and change the path to JSCoverage executable on your system.
+If you are going to use JSCoverage do the steps from `JSCoverage` section below.
+If you are going to use JSCover or you do not know what library to use do the steps 
+from `JSCover` section below. 
 
 Now activate the plugin in your cake app, including the plugin core configuration file:
 
@@ -58,6 +50,37 @@ plugin has not been tested with anything else. So, good luck if you do try somet
 When you've figured out all the basic stuff, try creating your own test profiles in the
 `JsTests/Config/core.php`. If you run into trouble, you can always revert to the default
 profile, or submit a ticket if you think you've run into a bug.
+
+### JSCoverage ###
+Note: only for those who use JSCoverage library.
+
+Next, make sure you have [JSCoverage][] somewhere on your system. On Ubuntu this is as simple as:
+
+	sudo apt-get install jscoverage
+
+If you're on Windows, download the Windows binaries and place them somewhere warm and comfy.
+
+Now, open the file `JsTests/Config/core.php` and find the line which says:
+
+	'executable'	=> '/usr/bin/jscoverage'
+
+and change the path to JSCoverage executable on your system.
+
+### JSCover ###
+Note: only for those who use JSCover library.
+
+By default and for illustration purposes tests are placed into the plugin section.
+If you are happy with that skip this section.
+If you prefer to have tests in you app folder you need to:
+1. move `JSTests/QunitTestsController.php` file to you `app/Controller` folder,
+2. move `JSTests/View/QunitTests` folder with all files to `app/View` folder,
+3. open the file `JsTests/Config/core.php` and find the line which says:
+
+	'plugin' 	 => 'JsTests',
+
+and change it to
+
+	'plugin' 	 => false,
 
 ## Contributing ##
 
@@ -90,5 +113,6 @@ Multi-licenced under:
 
 [CakePHP]: http://cakephp.org/
 [JSCoverage]: http://siliconforks.com/jscoverage/
+[JSCove]: http://tntim96.github.io/JSCover/
 [Vim]: http://www.vim.org/ "The Editor"
 [QUnit]: http://docs.jquery.com/Qunit
