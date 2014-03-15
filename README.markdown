@@ -114,6 +114,6 @@ Multi-licenced under:
 
 [CakePHP]: http://cakephp.org/
 [JSCoverage]: http://siliconforks.com/jscoverage/
-[JSCove]: http://tntim96.github.io/JSCover/
+[JSCover]: http://tntim96.github.io/JSCover/
 [Vim]: http://www.vim.org/ "The Editor"
 [QUnit]: http://docs.jquery.com/Qunit
