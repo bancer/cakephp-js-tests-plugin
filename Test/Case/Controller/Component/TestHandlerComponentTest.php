@@ -19,52 +19,6 @@ App::uses('Hash', 'Utility');
 
 App::uses('TestHandlerComponent', 'JsTests.Controller/Component');
 
-
-define('JS_TEST_PLUGIN_ROOT', App::pluginPath('JsTests'));
-define('JS_TESTDATA', JS_TEST_PLUGIN_ROOT.'Test'.DS.'data'.DS);
-
-if (!defined('CAKEPHP_UNIT_TEST_EXECUTION'))
-{
-	define('CAKEPHP_UNIT_TEST_EXECUTION', 1);
-}
-
-Configure::write('JsTests.Profiles',
-	array
-	(
-		'default' => array
-		(
-			'dir' => array
-			(
-				'normal_root'			=> JS_TESTDATA.'js'.DS,
-				'normal_tests'			=> JS_TESTDATA.'js'.DS.'tests'.DS,
-				'instrumented_root'		=> JS_TESTDATA.'js_instrumented'.DS,
-				'instrumented_tests'	=> JS_TESTDATA.'js_instrumented'.DS.'tests'.DS
-			),
-			'url' => array
-			(
-				'normal_root'			=> 'js/',
-				'normal_tests'			=> 'js/tests/',
-				'instrumented_root'		=> 'js_instrumented/',
-				'instrumented_tests'	=> 'js_instrumented/tests/',
-			),
-			'params' => array
-			(
-				'tests'		=> '*.test.html',
-				'name'		=> '^(?P<name>[a-zA-Z_\-0-9]+).test.html$',
-				'files'		=> array('%name%.test.js', '%name%.lib.js'),
-			),
-			'instrumentation' => array
-			(
-				'noInstrument'		=> array('tests'/*, 'jquery'*/),
-				'exclude'			=> array('.svn'),
-			),
-		),
-		'ze-empty' => array(),
-		'invalid' => array('dir' => array('normal-root' => '')),
-	)
-);
-
-
 class TestHandlerComponentTestController extends Controller
 {
 	public $uses = null;
@@ -86,6 +40,9 @@ class TestHandlerComponentTest extends CakeTestCase
 	 */
 	public $Component = null;
 
+	public static function setupBeforeClass() {
+		require_once(App::pluginPath('JsTests').'Test'.DS.'config.php');
+	}
 
 	public function setUp()
 	{
@@ -96,6 +53,7 @@ class TestHandlerComponentTest extends CakeTestCase
 		$this->Controller = new TestHandlerComponentTestController($request, $response);
 		$this->Controller->constructClasses();
 		$this->Component = new TestHandlerComponent($this->Controller->Components);
+		$this->Component->_profiles = Configure::read('JsTests.Profiles');
 	}
 
 
@@ -118,15 +76,14 @@ class TestHandlerComponentTest extends CakeTestCase
 			$this->skipIf($currentUser != $fileowner, 'Test data files are not owned by Apache user ('.$currentUser.')');
 		}
 
-		@touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.test.html', strtotime('-1 minute'));
-		@touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.test.js', strtotime('-1 minute'));
-		@touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.lib.js', strtotime('-1 minute'));
-		@touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.test.html', strtotime('+1 minute'));
-		@touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.test.js', strtotime('+1 minute'));
-		@touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.lib.js', strtotime('+1 minute'));
+		touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.test.html', strtotime('-1 minute'));
+		touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.test.js', strtotime('-1 minute'));
+		touch(JS_TESTDATA.'js'.DS.'tests'.DS.'some-library.lib.js', strtotime('-1 minute'));
+		touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.test.html', strtotime('+1 minute'));
+		touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.test.js', strtotime('+1 minute'));
+		touch(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.lib.js', strtotime('+1 minute'));
 		@unlink(JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-other-library.test.html');
 
-		$testData = Configure::read('JsTests.Profiles.default');
 		$expected = array
 			(
 				'some-library' => array
@@ -145,9 +102,7 @@ class TestHandlerComponentTest extends CakeTestCase
 						JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'some-library.lib.js'
 					),
 					'instrumentedExists' => true,
-					'instrumentedIsUpdated' => true,
-					'normalTestUrl' => '/js/tests/some-library.test.html',
-					'instrumentedTestUrl' => '/js_instrumented/jscoverage.html?u=/js_instrumented/tests/some-library.test.html',
+					'instrumentedIsUpdated' => true
 				),
 				'some-other-library' => array
 				(
@@ -157,16 +112,28 @@ class TestHandlerComponentTest extends CakeTestCase
 					'normalRelatedTestFiles' => array(),
 					'instrumentedRelatedTestFiles' => array(),
 					'instrumentedExists' => false,
-					'instrumentedIsUpdated' => false,
-					'normalTestUrl' => '/js/tests/some-other-library.test.html',
-					'instrumentedTestUrl' => '/js_instrumented/jscoverage.html?u=/js_instrumented/tests/some-other-library.test.html',
+					'instrumentedIsUpdated' => false
 				)
 			);
-
-		$result = $this->Component->loadTests('default', $testData);
-		$diff = (Hash::diff($result, $expected));
-
-		$this->assertTrue(empty($diff));
+		$result = $this->Component->loadTests('default');
+		$this->assertProfilesEqual($result, $expected);
+	}
+	
+	private function assertProfilesEqual($result, $expected) {
+		foreach ($result as $title => $profile) {
+			foreach($profile as $name => $preference) {
+				$this->assertEqual(
+					$preference,
+					$expected[$title][$name],
+					sprintf('$result[\'%s\'][\'%s\'] is not equal to $expected[\'%s\'][\'%s\']', $title, $name, $title, $name)
+				);
+				if(is_array($preference)) {
+					foreach ($preference as $k => $file) {
+						$this->assertEqual($file, $expected[$title][$name][$k]);
+					}
+				}
+			}
+		}
 	}
 
 	function testCheckProfile()
@@ -207,10 +174,56 @@ class TestHandlerComponentTest extends CakeTestCase
 
 		$this->skipIf(!file_exists($testJSCoveragePath));
 		Configure::write('JsTests.JSCoverage', array('executable' => $testJSCoveragePath));
+		$profile = Configure::read('JsTests.Profiles.default');
+		$this->skipIf(!is_writable($profile['dir']['instrumented_root']));
 
-		$result = $this->Component->instrument(Configure::read('JsTests.Profiles.default'));
+		$result = $this->Component->instrument($profile);
 		$expected = array('output' => array(), 'exitCode' => null);
 
 		$this->assertEqual($result, $expected);
+	}
+	
+	public function testLoadTestsCakeWay() {
+		$dir = App::pluginPath('JsTests').'View'.DS.'QunitTests'.DS;
+		$expected = array(
+			'all' => array(
+				'mainTestFile' 					=> 'test_all',
+				'normalTestPath' 				=> $dir.'test_all.ctp',
+				'instrumentedTestPath' 			=> $dir.'test_all.ctp',
+				'normalRelatedTestFiles' 		=> array(),
+				'instrumentedRelatedTestFiles' 	=> array(),
+				'instrumentedExists' 			=> true,
+				'instrumentedIsUpdated' 		=> true
+			),
+			'example1' => array(
+				'mainTestFile' 					=> 'test_example1',
+				'normalTestPath' 				=> $dir.'test_example1.ctp',
+				'instrumentedTestPath' 			=> $dir.'test_example1.ctp',
+				'normalRelatedTestFiles' 		=> array(
+					JS_TESTDATA.'js'.DS.'tests'.DS.'example1.test.js'
+				),
+				'instrumentedRelatedTestFiles' 	=> array(
+					JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'example1.test.js',
+				),
+				'instrumentedExists' 			=> true,
+				'instrumentedIsUpdated' 		=> false
+			),
+			'example2' => array(
+				'mainTestFile' 					=> 'test_example2',
+				'normalTestPath' 				=> $dir.'test_example2.ctp',
+				'instrumentedTestPath' 			=> $dir.'test_example2.ctp',
+				'normalRelatedTestFiles' 		=> array(
+					JS_TESTDATA.'js'.DS.'tests'.DS.'example2.test.js'
+				),
+				'instrumentedRelatedTestFiles' 	=> array(
+					JS_TESTDATA.'js_instrumented'.DS.'tests'.DS.'example2.test.js',
+				),
+				'instrumentedExists' 			=> false,
+				'instrumentedIsUpdated' 		=> false
+			)
+		);
+		touch($expected['example1']['normalRelatedTestFiles'][0], strtotime('+1 minute'));
+		$result = $this->Component->loadTests('cake_way');
+		$this->assertProfilesEqual($result, $expected);
 	}
 }
