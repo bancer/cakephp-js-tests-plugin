@@ -41,7 +41,7 @@ class TestHandlerComponent extends Component {
 			$jsCoverageTests 	= $this->_findJsCoverageTests($profileName, $jsTests);
 			$instrumentedExists = $this->_coverageExists($profileName, $testName);
 			$coverageView 		= $this->_findCoverageView($profileName, $action);
-			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($instrumentedExists,
+			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($profileName, $instrumentedExists,
 					$jsTests, $jsCoverageTests, $view, $coverageView);
 			
 			$this->_tests[$profileName][$testName] = array(
@@ -202,12 +202,13 @@ class TestHandlerComponent extends Component {
 	 * @param string $coverageView
 	 * @return boolean
 	 */
-	protected function _coverageFilesAreUpToDate($instrumentedExists, $jsTests, $jsCoverageTests, $view, $coverageView) {
+	protected function _coverageFilesAreUpToDate($profileName, $instrumentedExists, $jsTests, $jsCoverageTests, $view, $coverageView) {
 		$instrumentedIsUpdated = false;
 		// check if the instrumented version is up to date
 		if ($instrumentedExists) {
 			$lastNormalModification = $this->_testFilesLastModificationTime($jsTests, $view);
-			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($jsCoverageTests, $coverageView);
+			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($profileName, 
+				$jsCoverageTests, $coverageView);
 			$instrumentedIsUpdated = $lastInstrumentedModification > $lastNormalModification - 1;
 		}
 		return $instrumentedIsUpdated;
@@ -236,13 +237,23 @@ class TestHandlerComponent extends Component {
 	 * @param unknown_type $view
 	 * @return int Unix timestamp - the time file was modified
 	 */
-	protected function _coverageFilesLastModificationTime($jsCoverageTests, $view) {
-		$lastInstrumentedModification = filemtime($view);
+	protected function _coverageFilesLastModificationTime($profileName, $jsCoverageTests, $view) {
+		$lastInstrumentedModification;
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		if(is_string($launcher)) {
+			$lastInstrumentedModification = filemtime($view);
+		}
+		if(is_array($launcher)) {
+			$lastInstrumentedModification = 0;
+		}
 		foreach ($jsCoverageTests as $testFile) {
 			if (file_exists($testFile)) {
 				$tmp_mtime = filemtime($testFile);
 				$lastInstrumentedModification = $tmp_mtime > $lastInstrumentedModification ? $tmp_mtime : $lastInstrumentedModification;
 			}
+		}
+		if($lastInstrumentedModification == 0) { // if no js tests exist for the test view
+			$lastInstrumentedModification = filemtime($this->_profiles[$profileName]['dir']['instrumented_root'].JsTestHelper::COVERAGE_HTML);
 		}
 		return $lastInstrumentedModification;
 	}
