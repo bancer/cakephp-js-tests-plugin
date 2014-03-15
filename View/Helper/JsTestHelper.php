@@ -14,11 +14,29 @@ class JsTestHelper extends AppHelper {
 		if(is_string($this->settings['url']['normal_tests'])) {
 			$url = '/'.$this->settings['url']['normal_tests'].$url;
 		}
+		if(is_array($this->settings['url']['normal_tests'])) {
+			$url = array(
+				'plugin' => Inflector::underscore($this->settings['url']['normal_tests']['plugin']),
+				'controller' => Inflector::underscore($this->settings['url']['normal_tests']['controller']),
+				'action' => $url
+			);
+		}
 		return $this->Html->link($title, $url, $options);
 	}
 	
 	public function coverageLink($title, $url = null, $options = array()) {
-		$instrumentedTestFileURL = $this->Html->url('/'.$this->settings['url']['instrumented_tests'].$url);
+		$instrumentedTestFileURL;
+		if(is_string($this->settings['url']['normal_tests'])) {
+			$instrumentedTestFileURL = $this->Html->url('/'.$this->settings['url']['instrumented_tests'].$url);
+		}
+		if(is_array($this->settings['url']['normal_tests'])) {
+			$instrumentedTestFileURL = $this->Html->url(array(
+				'plugin' => Inflector::underscore($this->settings['url']['normal_tests']['plugin']),
+				'controller' => Inflector::underscore($this->settings['url']['normal_tests']['controller']),
+				'action' => $url,
+				'coverage'
+			));
+		}
 		$instrumentedTestURL = sprintf(
 			self::COVERAGE_LINK_FORMAT,
 			$this->settings['url']['instrumented_root'],

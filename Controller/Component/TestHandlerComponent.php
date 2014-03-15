@@ -32,18 +32,14 @@ class TestHandlerComponent extends Component {
 	 */
 	function loadTests($profileName) {
 		$this->_tests = array($profileName => array());
-
-		// detect tests
 		$views = $this->_findTestViews($profileName);
-
 		foreach ($views as $view) {
-			// get the name and related test files
-			$action = basename($view);
-			$testName = $this->_getTestName($profileName, $action);
-			$jsTests = $this->_findJsTestFiles($profileName, $view, $testName);
-			$jsCoverageTests = $this->_findJsCoverageTests($profileName, $jsTests);
-			$instrumentedExists = $this->_coverageExists($profileName, $action);
-			$coverageView = $this->_findCoverageView($profileName, $action);
+			$action 			= $this->_getAction($profileName, $view);
+			$testName 			= $this->_getTestName($profileName, $action);
+			$jsTests 			= $this->_findJsTestFiles($profileName, $testName);
+			$jsCoverageTests 	= $this->_findJsCoverageTests($profileName, $jsTests);
+			$instrumentedExists = $this->_coverageExists($profileName, $testName);
+			$coverageView 		= $this->_findCoverageView($profileName, $action);
 			$instrumentedIsUpdated = $this->_coverageFilesAreUpToDate($instrumentedExists,
 					$jsTests, $jsCoverageTests, $view, $coverageView);
 			
@@ -60,28 +56,97 @@ class TestHandlerComponent extends Component {
 		return $this->_tests[$profileName];
 	}
 	
-	protected function _getTestName($profileName, $action) {
-		$matches = array();	
-		$testName = preg_match('#'.$this->_profiles[$profileName]['params']['name'].'#', $action, $matches);
-		$testName = isset($matches['name']) ? $matches['name'] : $matches[0];
-		return $testName;
-	}
-	
+	/**
+	 * Finds full paths to test view files.
+	 * @param string $profileName
+	 * @return array numerically indexed array of test view files
+	 */
 	protected function _findTestViews($profileName) {
-		$testsGlob = $this->_profiles[$profileName]['dir']['normal_tests'].$this->_profiles[$profileName]['params']['tests'];
-		$views = glob($testsGlob);
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		$views = array();
+		if(is_string($launcher)) {
+			$views = glob(
+				$this->_profiles[$profileName]['dir']['normal_tests'].
+				$this->_profiles[$profileName]['params']['tests']
+			);
+		}
+		if(is_array($launcher)) {
+			if($launcher['plugin']) {
+				App::import('Controller', $launcher['plugin'].'.'.$launcher['controller']);
+			} else {
+				App::import('Controller', $launcher['controller']);
+			}
+			$methods = get_class_methods($launcher['controller'].'Controller');
+			$views = array_filter($methods, function($method) {
+				return substr($method, 0, 4) == 'test'; // method starts with 'test'
+			});
+			foreach ($views as &$view) {
+				if($launcher['plugin']) {
+					$view = APP.'Plugin'.DS.$launcher['plugin'].DS.'View'.DS.$launcher['controller'].DS.$view.'.ctp';
+				} else {
+					$view = APP.'View'.DS.$launcher['controller'].DS.$view.'.ctp';
+				}
+			}
+		}
 		return $views;
 	}
 	
-	protected function _findJsTestFiles($profileName, $view, $testName) {
+	/**
+	 * Extracts action from view's path.
+	 * @param string $profileName
+	 * @param string $view
+	 * @return string
+	 */
+	protected function _getAction($profileName, $view) {
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		if(is_string($launcher)) {
+			return basename($view);
+		}
+		if(is_array($launcher)) {
+			return basename($view, '.ctp');
+		}
+	}
+
+	/**
+	 * Extracts test name from action name.
+	 * @param string $profileName
+	 * @param string $action
+	 * @return string
+	 */
+	protected function _getTestName($profileName, $action) {
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		if(is_string($launcher)) {
+			$matches = array();
+			$testName = preg_match('#'.$this->_profiles[$profileName]['params']['name'].'#', $action, $matches);
+			$testName = isset($matches['name']) ? $matches['name'] : $matches[0];
+			return $testName;
+		}
+		if(is_array($launcher)) {
+			return str_replace('test_', '', $action);
+		}
+	}
+	
+	/**
+	 * Locates all javascript test files related to the specified test.
+	 * @param string $profileName
+	 * @param string $testName
+	 * @return array
+	 */
+	protected function _findJsTestFiles($profileName, $testName) {
 		$testFiles = array();
 		foreach ($this->_profiles[$profileName]['params']['files'] as $pattern) {
-			$relatedPattern = dirname($view).DS.str_replace('%name%', $testName, $pattern);
+			$relatedPattern = $this->_profiles[$profileName]['dir']['normal_tests'].str_replace('%name%', $testName, $pattern);
 			$testFiles = array_merge($testFiles, glob($relatedPattern));
 		}
 		return $testFiles;
 	}
 	
+	/**
+	 * Locates all javascript coverage test files related to the specified test.
+	 * @param string $profileName
+	 * @param array $jsTests array with javascript test files
+	 * @return array
+	 */
 	protected function _findJsCoverageTests($profileName, $jsTests) {
 		return str_replace(
 			$this->_profiles[$profileName]['dir']['normal_tests'],
@@ -90,28 +155,72 @@ class TestHandlerComponent extends Component {
 		);
 	}
 	
-	protected function _coverageExists($profileName, $action) {
-		return file_exists($this->_profiles[$profileName]['dir']['instrumented_tests'].$action);
+	/**
+	 * Verifies whether the test javascript coverage files exist for the specified test.
+	 * @param string $profileName
+	 * @param string $testName
+	 * @return boolean true if test coverage files exist, else false.
+	 */
+	protected function _coverageExists($profileName, $testName) {
+		foreach ($this->_profiles[$profileName]['params']['files'] as $pattern) {
+			$jsTest = $this->_profiles[$profileName]['dir']['normal_tests'].str_replace('%name%', $testName, $pattern);
+			$jsTestCoverage = $this->_profiles[$profileName]['dir']['instrumented_tests'].str_replace('%name%', $testName, $pattern);
+			if(file_exists($jsTest) && !file_exists($jsTestCoverage)) {
+				return false;
+			}
+		}
+		return true;
 	}
 	
+	/**
+	 * Extract coverage view test file full path.
+	 * @param string $profileName
+	 * @param string $action
+	 * @return string
+	 */
 	protected function _findCoverageView($profileName, $action) {
-		return $this->_profiles[$profileName]['dir']['instrumented_tests'].$action;
+		$launcher = $this->_profiles[$profileName]['url']['normal_tests'];
+		if(is_string($launcher)) {
+			return $this->_profiles[$profileName]['dir']['instrumented_tests'].$action;
+		}
+		if(is_array($launcher)) {
+			if($launcher['plugin']) {
+				return APP.'Plugin'.DS.$launcher['plugin'].DS.'View'.DS.$launcher['controller'].DS.$action.'.ctp';
+			} else {
+				return APP.'View'.DS.$launcher['controller'].DS.$action.'.ctp';
+			}	
+		}
 	}
 	
-	protected function _coverageFilesAreUpToDate($instrumentedExists, $testFiles, $jsCoverageTests, $view, $coverageView) {
+	/**
+	 * Verifies whether test coverage files are uptodate.
+	 * @param boolean $instrumentedExists
+	 * @param array $jsTests
+	 * @param array $jsCoverageTests
+	 * @param string $view
+	 * @param string $coverageView
+	 * @return boolean
+	 */
+	protected function _coverageFilesAreUpToDate($instrumentedExists, $jsTests, $jsCoverageTests, $view, $coverageView) {
 		$instrumentedIsUpdated = false;
 		// check if the instrumented version is up to date
 		if ($instrumentedExists) {
-			$lastNormalModification = $this->_testFilesLastModificationTime($testFiles, $view);
+			$lastNormalModification = $this->_testFilesLastModificationTime($jsTests, $view);
 			$lastInstrumentedModification = $this->_coverageFilesLastModificationTime($jsCoverageTests, $coverageView);
-			$instrumentedIsUpdated = $lastInstrumentedModification >= $lastNormalModification;
+			$instrumentedIsUpdated = $lastInstrumentedModification > $lastNormalModification;
 		}
 		return $instrumentedIsUpdated;
 	}
 	
-	protected function _testFilesLastModificationTime($testFiles, $view) {
+	/**
+	 * Retrieve last modification time of the test files (both view and javascript).
+	 * @param array $jsTests
+	 * @param string $view
+	 * @return int Unix timestamp - the time file was modified
+	 */
+	protected function _testFilesLastModificationTime($jsTests, $view) {
 		$lastNormalModification = filemtime($view);
-		foreach ($testFiles as $testFile) {
+		foreach ($jsTests as $testFile) {
 			if (file_exists($testFile)) {
 				$tmp_mtime = filemtime($testFile);
 				$lastNormalModification = $tmp_mtime > $lastNormalModification ? $tmp_mtime : $lastNormalModification;
@@ -120,6 +229,12 @@ class TestHandlerComponent extends Component {
 		return $lastNormalModification;
 	}
 	
+	/**
+	 * Retrieve last modification time of the test coverage files (both view and javascript).
+	 * @param unknown_type $jsCoverageTests
+	 * @param unknown_type $view
+	 * @return int Unix timestamp - the time file was modified
+	 */
 	protected function _coverageFilesLastModificationTime($jsCoverageTests, $view) {
 		$lastInstrumentedModification = filemtime($view);
 		foreach ($jsCoverageTests as $testFile) {

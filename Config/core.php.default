@@ -44,6 +44,34 @@ Configure::write
 					'exclude'			=> array('.svn'),
 				),
 			),
+			
+		'cake_way' => array(
+			'dir' => array(
+				'normal_root'			=> JS,
+				'normal_tests'			=> JS.'tests'.DS,
+				'instrumented_root'		=> WWW_ROOT.'js_instrumented'.DS,
+				'instrumented_tests'	=> WWW_ROOT.'js_instrumented'.DS.'tests'.DS
+			),
+			'url' => array(
+				'normal_root'			=> null,
+				'normal_tests'			=> array(
+					'plugin' 	 => 'JsTests',
+					'controller' => 'QunitTests'
+				),
+				'instrumented_root'		=> 'js_instrumented/',
+				'instrumented_tests'	=> 'js_instrumented/tests/',
+			),
+			'params' => array(
+				'tests'		=> null,
+				'name'		=> '^test_(?P<name>[a-zA-Z_\-0-9]+).ctp$',
+				'files'		=> array('%name%.test.js', '%name%.lib.js'),
+			),
+			'instrumentation' => array(
+				'noInstrument'	=> array('tests', 'qunit'),
+				'exclude'		=> array('.svn'),
+				'library' => 'JSCoverage'
+			),
+		),
 			'invalid' => array()
 		)
 	);

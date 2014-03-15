@@ -45,4 +45,12 @@ class JsTestsAppController extends AppController
 			return;
 		}
 	}
+	
+	public function beforeRender() {
+		$jsRoot = '';
+		if(isset($this->request->params['pass'][0]) && $this->request->params['pass'][0] == 'coverage') {
+			$jsRoot = '/'.$this->activeProfileData['url']['instrumented_root'];
+		}
+		$this->set('jsRoot', $jsRoot);
+	}
 }
