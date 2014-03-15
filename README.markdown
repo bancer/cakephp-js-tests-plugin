@@ -26,9 +26,9 @@ and make it world-writable (also make sure it's completely empty!).
 
 Next, copy the `JsTests/Config/core.php.default` to `JsTests/Config/core.php`. 
 
-If you are going to use JSCoverage do the steps from `JSCoverage` section below.
+If you are going to use JSCoverage do the steps from **JSCoverage** section below.
 If you are going to use JSCover or you do not know what library to use do the steps 
-from `JSCover` section below. 
+from **JSCover** section below. 
 
 Now activate the plugin in your cake app, including the plugin core configuration file:
 
