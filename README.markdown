@@ -52,7 +52,7 @@ When you've figured out all the basic stuff, try creating your own test profiles
 profile, or submit a ticket if you think you've run into a bug.
 
 ### JSCoverage ###
-Note: only for those who use JSCoverage library.
+**Note**: only for those who use JSCoverage library.
 
 Next, make sure you have [JSCoverage][] somewhere on your system. On Ubuntu this is as simple as:
 
@@ -67,11 +67,12 @@ Now, open the file `JsTests/Config/core.php` and find the line which says:
 and change the path to JSCoverage executable on your system.
 
 ### JSCover ###
-Note: only for those who use JSCover library.
+**Note**: only for those who use JSCover library.
 
-By default and for illustration purposes tests are placed into the plugin section.
+By default and for illustration purposes tests are placed into the plugin folder.
 If you are happy with that skip this section.
 If you prefer to have tests in you app folder you need to:
+
 1. move `JSTests/QunitTestsController.php` file to you `app/Controller` folder,
 2. move `JSTests/View/QunitTests` folder with all files to `app/View` folder,
 3. open the file `JsTests/Config/core.php` and find the line which says:
