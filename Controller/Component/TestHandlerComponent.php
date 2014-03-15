@@ -297,9 +297,10 @@ class TestHandlerComponent extends Component {
 	 * @param array $profileData
 	 */
 	function instrument($profileData) {
-		$adapter = $profileData['instrumentation']['library'].'Adapter';
+		$lib = $profileData['instrumentation']['library'];
+		$adapter = $lib.'Adapter';
 		App::uses($adapter, 'JsTests.Lib');
-		$coverage = new $adapter(Configure::read('JsTests.JSCoverage.executable'));
+		$coverage = new $adapter(Configure::read('JsTests.'.$lib.'.executable'));
 		return $coverage->execute(
 			$profileData['instrumentation']['noInstrument'],
 			$profileData['instrumentation']['exclude'],

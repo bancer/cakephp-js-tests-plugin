@@ -11,39 +11,33 @@
 		GPL <http://www.gnu.org/licenses/gpl.html>
 */
 
-Configure::write
-	(
-		'JsTests.Profiles',
-		array
-		(
-			'default' => array
-			(
-				'dir' => array
-				(
-					'normal_root'			=> JS,
-					'normal_tests'			=> JS.'tests'.DS,
-					'instrumented_root'		=> WWW_ROOT.'js_instrumented'.DS,
-					'instrumented_tests'	=> WWW_ROOT.'js_instrumented'.DS.'tests'.DS
-				),
-				'url' => array
-				(
-					'normal_root'			=> JS_URL,
-					'normal_tests'			=> JS_URL.'tests/',
-					'instrumented_root'		=> 'js_instrumented/',
-					'instrumented_tests'	=> 'js_instrumented/tests/',
-				),
-				'params' => array
-				(
-					'tests'		=> '*.test.html',
-					'name'		=> '^(?P<name>[a-zA-Z_\-0-9]+).test.html$',
-					'files'		=> array('%name%.test.js', '%name%.lib.js'),
-				),
-				'instrumentation' => array
-				(
-					'noInstrument'		=> array('tests', 'qunit'),
-					'exclude'			=> array('.svn'),
-				),
+Configure::write(
+	'JsTests.Profiles',
+	array(
+		'default' => array(
+			'dir' => array(
+				'normal_root'			=> JS, // dir with js files from where the files are copied to 'instrumented_root'
+				'normal_tests'			=> JS.'tests'.DS, // dir with js tests
+				'instrumented_root'		=> WWW_ROOT.'js_instrumented'.DS, // dir where coverage is generated with js tests copied from 'normal_root'
+				'instrumented_tests'	=> WWW_ROOT.'js_instrumented'.DS.'tests'.DS
 			),
+			'url' => array(
+				'normal_root'			=> JS_URL, // not used
+				'normal_tests'			=> JS_URL.'tests/', // url to tests
+				'instrumented_root'		=> 'js_instrumented/', // url to coverage tests
+				'instrumented_tests'	=> 'js_instrumented/tests/', // url that is passed as a parameter to jscoverage.html
+			),
+			'params' => array(
+				'tests'		=> '*.test.html', // regex to detect html/php files with tests
+				'name'		=> '^(?P<name>[a-zA-Z_\-0-9]+).test.html$',
+				'files'		=> array('%name%.test.js', '%name%.lib.js'),
+			),
+			'instrumentation' => array(
+				'noInstrument'		=> array('tests', 'qunit'),
+				'exclude'			=> array('.svn'),
+				'library' 			=> 'JSCoverage'
+			),
+		),
 			
 		'cake_way' => array(
 			'dir' => array(
@@ -69,20 +63,18 @@ Configure::write
 			'instrumentation' => array(
 				'noInstrument'	=> array('tests', 'qunit'),
 				'exclude'		=> array('.svn'),
-				'library' => 'JSCoverage'
+				'library' => 'JSCover'
 			),
 		),
-			'invalid' => array()
-		)
-	);
+		'invalid' => array()
+	)
+);
 
-Configure::write
-	(
-		'JsTests.JSCoverage',
-		array
-		(
-			'executable'	=> '/usr/bin/jscoverage'
-		)
-	);
+Configure::write('JsTests.JSCoverage', array(
+	'executable' => '/usr/bin/jscoverage'
+));
+Configure::write('JsTests.JSCover', array(
+	'executable' => APP.'Plugin'.DS.'JsTests'.DS.'Vendor'.DS.'JSCover'.DS.'JSCover-all.jar'
+));
 
 Configure::write('JsTests.ActiveProfile', 'default');
